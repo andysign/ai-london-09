@@ -1,2 +1,193 @@
-<h1>Welcome ( London 09 )</h1>
+<!doctype html>
+<html lang="en">
 
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+
+	<title>A.I.</title>
+
+	<!-- <link rel="stylesheet" href="dist/reset.css"> -->
+	<link rel="stylesheet" href="dist/reveal.css">
+	<link rel="stylesheet" href="dist/theme/black.css">
+
+	<!-- Theme used for syntax highlighted code -->
+	<link rel="stylesheet" href="plugin/highlight/monokai.css">
+
+	<!-- Font awesome is required for the chalkboard plugin -->
+	<script src="plugin/chalkboard/font-awesome-all.min.js"></script>
+	<link rel="stylesheet" href="plugin/chalkboard/font-awesome-all.min.css">
+
+	<!-- Custom controls plugin is used to for opening and closing annotation modes. -->
+	<link rel="stylesheet" href="plugin/customcontrols/style.css">
+
+	<!-- Chalkboard plugin -->
+	<link rel="stylesheet" href="plugin/chalkboard/style.css">
+
+	<!-- Marked plugin -->
+	<script src="plugin/markdown/marked.js"></script>
+
+	<!-- CryptoJS UTILITY (used in the script below) -->
+	<script src="plugin/utils/crypto-js/crypto-js-4-1-1.min.js"></script>
+
+	<!-- Inject CONSTANTS (used in the script below) -->
+	<script src="plugin/constants/constants-ext-links.js"></script>
+
+	<style>
+		.scrollable {
+			overflow-y: auto;
+			max-height: 90vh;
+			width: 100%;
+			scrollbar-width: none;
+			-ms-overflow-style: none;
+		}
+	</style>
+</head>
+<body style="overflow: auto;">
+
+<div class="reveal">
+<div class="slides">
+
+<section class="scrollable"
+		 data-markdown data-separator="^\r?\n---\n---"
+		 data-separator-vertical="\n\n---\n\n"
+		 data-separator-notes="^Note:" data-charset="iso-8859-15"
+>
+<textarea id="external" data-template>
+...
+</textarea>
+</section>
+
+<!-- data-markdown="./slides/README.md" -->
+
+</div>
+</div>
+
+<script src="dist/reveal.js"></script>
+
+<script src="plugin/chalkboard/plugin.js"></script>
+<script src="plugin/customcontrols/plugin.js"></script>
+<script src="plugin/highlight/highlight.js"></script>
+<script src="plugin/markdown/markdown.js"></script>
+<script src="plugin/notes/notes.js"></script>
+<script src="plugin/zoom/zoom.js"></script>
+
+<script>
+	// More info about initialization & config: https://revealjs.com/initialization/ & /config/
+	function getCookie(name) {
+		const match = document.cookie.match(new RegExp('(^|;\\s*)' + name + '=([^;]*)'));
+		return match ? decodeURIComponent(match[2]) : null;
+	}
+	function setCookie(name, value, days) {
+		let expires = '';
+		if (days) {
+			const t = new Date();
+			t.setTime(t.getTime() + days * 24 * 60 * 60 * 1000);
+			expires = `; expires=${t.toUTCString()}`;
+		}
+		document.cookie = `${name}=${encodeURIComponent(value)}${expires}; path=/`;
+	}
+
+	let key = getCookie('slideKey');
+	if (!key) {
+		key = window.prompt("Enter the secret key:");
+		if (key === null || key === "") {
+			alert("ErrKeyIsEmpty");
+			window.location.reload();
+		}
+		setCookie('slideKey', key, 30);
+	}
+
+	const checkOriginLocal = () => window.location.origin === 'http://localhost:8000';
+	const fixHref = (h) => h.replace("images/", "").replace("raw/", "");
+	if (key === null || key === "") {
+		alert("ErrKeyIsEmpty");
+		window.location.reload();
+	}
+
+	const nodejsPrefixEncr = NODEJS_P; // /* MadeWith */ CryptoJS.AES.encrypt(message, key).toString();
+	const nodejsPrefix = CryptoJS.AES.decrypt(nodejsPrefixEncr, key /*+ "local"*/).toString(CryptoJS.enc.Utf8);
+
+	const githubPrefixEncr = GITHUB_P;
+	const githubPrefix = CryptoJS.AES.decrypt(githubPrefixEncr, key).toString(CryptoJS.enc.Utf8);
+
+	if (nodejsPrefix == "" || githubPrefix == "") {
+		alert("ErrKeyIsIncorrect");
+		window.location.reload();
+	}
+	const nodejs = `${nodejsPrefix}README.md`;
+	const github = `${githubPrefix}README.md`;
+	const url = checkOriginLocal() ? nodejs : github;
+
+	async function loadSlides() {
+		try {
+			const response = await fetch(url);
+			const html = await response.text();
+
+			document.getElementById('external').innerHTML = html;
+
+			const originalRenderer = new marked.Renderer();
+			const customRenderer = new marked.Renderer();
+
+			customRenderer.image = function (href, title, text) {
+				const baseUrl = checkOriginLocal() ? nodejsPrefix : githubPrefix;
+				const fullHref = href.startsWith('http') ? href : baseUrl + fixHref(href);
+				return originalRenderer.image(fullHref, title, text);
+			};
+
+			customRenderer.code = function (code, infos, escaped) {
+				let lang = 'plaintext', lineNumbers = '', startFrom = '', hasLineNumbers = false;
+
+				if (infos) {
+					const match = infos.match(/^(\w+)(?:\s*\[([^\]]*)\])?/);
+					if (match) {
+						lang = match[1] || 'plaintext';
+						if (match[2] !== undefined) {
+							hasLineNumbers = true;
+							if (match[2].includes(':')) {
+								startFrom = match[2].split(':', 2)[0].trim();
+								lineNumbers = match[2].split(':', 2)[1].trim();
+							} else {
+								lineNumbers = match[2];
+							}
+						}
+					}
+				}
+
+				const attrs = (hasLineNumbers ? ` data-line-numbers="${lineNumbers}"` : '') +
+					(startFrom ? ` data-ln-start-from="${startFrom}"` : '');
+
+				return `<pre><code data-trim class="language-${lang}"${attrs}>${escaped || code}</code></pre>`;
+				// const escCode = escaped ? code : code.replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": "&#39;" }[m]));
+			};
+
+			Reveal.initialize({
+				markdown: { breaks: true, gfm: true, renderer: customRenderer },
+				customcontrols: {
+					controls: [
+						{ icon: '<i class="fa fa-pen" style="color:#444"></i>', title: 'Toggle notes canvas (C)', action: 'RevealChalkboard.toggleNotesCanvas();' }
+					]
+				},
+				slideNumber: 'h.v',
+				controlsBackArrows: 'hidden',
+				hash: true,
+				history: true,
+				hideInactiveCursor: true,
+				hideCursorTime: 5000,
+				transition: 'fade',
+				plugins: [RevealChalkboard, RevealCustomControls, RevealMarkdown, RevealHighlight, RevealNotes, RevealZoom]
+			});
+		} catch (err) {
+			console.error("Failed to load external HTML:", err);
+			alert("Error loading the content of the slides from external secret url.");
+			const er = document.createElement('body');
+			er.textContent = 'UnknownError';
+			document.documentElement.replaceChild(er, document.body);
+		}
+	}
+
+	loadSlides();
+</script>
+
+</body>
+</html>
